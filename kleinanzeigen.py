@@ -128,7 +128,7 @@ def delete_ad(driver, ad):
 
     if ad_id_elem is not None:
         try:
-            btn_del = ad_id_elem.find_element_by_class_name("managead-listitem-action-delete")
+            btn_del = ad_id_elem.find_elements(By.CLASS_NAME, "managead-listitem-action-delete")
             btn_del.click()
 
             fake_wait()
