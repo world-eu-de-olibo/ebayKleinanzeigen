@@ -6,6 +6,7 @@
 """
 Created on Tue Oct  6 00:15:14 2015
 Updated and improved by x86dev Dec 2017.
+Updated world-eu-de-olibo Aug 2022.
 
 @author: Leo; Eduardo; x86dev
 """
@@ -59,20 +60,33 @@ def login(config):
     input_email = config['glob_username']
     input_pw = config['glob_password']
     log.info("Login with account email: " + input_email)
-    driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html')
-
+    
+    driver.get('https://www.ebay-kleinanzeigen.de')
+              
     # wait for the 'accept cookie' banner to appear
     WebDriverWait(driver, 6).until(EC.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
-
+    
+    fake_wait(2000)   
+    
+    driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html')
+    
+    fake_wait(2000)
+    
     text_area = WebDriverWait(driver, 1).until(EC.presence_of_element_located((By.ID, 'login-email')))
     text_area.send_keys(input_email)
     fake_wait(200)
 
-    text_area = driver.find_element_by_id('login-password')
+    has_captcha = login_has_captcha(driver)
+    if has_captcha:
+        log.info("\t*** Manual captcha input needed! ***")
+        log.info("\tFill out captcha but DON'T submit. After that press Enter here to continue ...")
+        wait_key()
+
+    text_area = driver.find_element(By.ID, 'login-password') 
     text_area.send_keys(input_pw)
     fake_wait(200)
 
-    submit_button = driver.find_element_by_id('login-submit')
+    submit_button = driver.find_element(By.ID, 'login-submit') 
     submit_button.click()
 
 
@@ -95,26 +109,38 @@ def delete_ad(driver, ad):
 
     if "id" in ad:
         try:
-            ad_id_elem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
+            ad_id_elem = driver.find_element("xpath", "//li[@data-adid='%s']" % ad["id"])
         except NoSuchElementException:
             log.info("\tNot found by ID")
+            try: 
+                next_page = driver.find_element(By.CLASS_NAME, "Pagination--next")
+                next_page.click()
+                fake_wait()
+                ad_id_elem = driver.find_element("xpath", "//li[@data-adid='%s']" % ad["id"])
+            except NoSuchElementException:
+                log.info("\tNot found by ID on second page")
 
     if ad_id_elem is None:
         try:
-            ad_id_elem = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
+            ad_id_elem = driver.find_element("xpath", "//article[.//a[contains(text(), '%s')]]" % ad["title"])
         except NoSuchElementException:
             log.info("\tNot found by title")
 
     if ad_id_elem is not None:
         try:
-            btn_del = ad_id_elem.find_elements_by_class_name("managead-listitem-action-delete")[1]
+            btn_del = ad_id_elem.find_element_by_class_name("managead-listitem-action-delete")
             btn_del.click()
 
             fake_wait()
-
-            btn_confirm_del = driver.find_element_by_id("modal-bulk-delete-ad-sbmt")
+            
+            toogle_delete_reason = driver.find_element(By.ID, "DeleteWithoutReason")
+            toogle_delete_reason.click()
+            
+            fake_wait()
+            
+            btn_confirm_del = driver.find_element(By.ID, "sold-celebration-sbmt")
             btn_confirm_del.click()
-
+            
             log.info("\tAd deleted")
             fake_wait(randint(2000, 3000))
             webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
@@ -152,12 +178,25 @@ def wait_key():
 
     return result
 
+def login_has_captcha(driver):
+    has_captcha = False
+
+    try:
+        captcha_field = driver.find_element("xpath", '//*[@id="login-recaptcha"]')
+        if captcha_field:
+            has_captcha = True
+    except NoSuchElementException:
+        pass
+
+    log.info(f"Captcha: {has_captcha}")
+
+    return has_captcha
 
 def post_ad_has_captcha(driver):
     has_captcha = False
 
     try:
-        captcha_field = driver.find_element_by_xpath('//*[@id="postAd-recaptcha"]')
+        captcha_field = driver.find_element("xpath", '//*[@id="postAd-recaptcha"]')
         if captcha_field:
             has_captcha = True
     except NoSuchElementException:
@@ -200,14 +239,14 @@ def post_ad(driver, ad, interactive):
 
     category_selected = False
     try:
-      driver.find_element_by_id('pstad-lnk-chngeCtgry')
+      driver.find_element(By.ID, 'pstad-lnk-chngeCtgry')
       log.info("Using new layout")
     except:
       log.info("Using old layout")
       # legacy handling for old page layout where you have to first select the category (currently old and new layout are served randomly)
       driver.get(ad["caturl"].replace('p-kategorie-aendern', 'p-anzeige-aufgeben'))
       fake_wait(300)
-      driver.find_element_by_css_selector("#postad-step1-sbmt button").click()
+      driver.find_element(By.CSS_SELECTOR, "#postad-step1-sbmt button").click()
       fake_wait(300)
       category_selected = True
 
@@ -218,15 +257,15 @@ def post_ad(driver, ad, interactive):
 
     # Fill form
     if "type" in ad and ad["type"] == "WANTED":
-        driver.find_element_by_id('adType2').click()
-    title_input = driver.find_element_by_id('postad-title')
+        driver.find_element(By.ID, 'adType2').click()
+    title_input = driver.find_element(By.ID, 'postad-title')
     title_input.click()
     title_input.send_keys(ad["title"])
-    driver.find_element_by_id('pstad-descrptn').click() # click description textarea to lose focus from title field which will trigger category auto detection
+    driver.find_element(By.ID, 'pstad-descrptn').click() # click description textarea to lose focus from title field which will trigger category auto detection
     if not category_selected:
       # wait for category auto detection
       try:
-        WebDriverWait(driver, 3).until(lambda driver: driver.find_element_by_id('postad-category-path').text.strip() != '')
+        WebDriverWait(driver, 3).until(lambda driver: driver.find_element(By.ID, 'postad-category-path').text.strip() != '')
         category_selected = True
       except:
         pass
@@ -234,11 +273,11 @@ def post_ad(driver, ad, interactive):
       cat_override = ad["caturl"]
       if cat_override:
         cat_override = cat_override.replace('p-anzeige-aufgeben', 'p-kategorie-aendern') # replace old links for backwards compatibility
-        driver.find_element_by_id('pstad-lnk-chngeCtgry').click()
+        driver.find_element(By.ID, 'pstad-lnk-chngeCtgry').click()
         WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, 'postad-step1-sbmt')))
         driver.get(cat_override)
         fake_wait()
-        driver.find_element_by_id('postad-step1-sbmt').submit()
+        driver.find_element(By.ID, 'postad-step1-sbmt').submit()
         fake_wait()
         category_selected = True
       if not category_selected:
@@ -248,18 +287,18 @@ def post_ad(driver, ad, interactive):
     additional_category_options = ad.get("additional_category_options", {})
     for element_id, value in additional_category_options.items():
         try:
-            select_element = driver.find_element_by_css_selector(
+            select_element = driver.find_element(By.CSS_SELECTOR,
                 'select[id$="{}"]'.format(element_id)
             )
             Select(select_element).select_by_visible_text(value)
         except NoSuchElementException:
             try:
-                driver.find_element_by_xpath("//input[@id='%s']" % element_id).send_keys(value)
+                driver.find_element("xpath", "//input[@id='%s']" % element_id).send_keys(value)
             except NoSuchElementException:
                 pass
 
 
-    text_area = driver.find_element_by_id("pstad-descrptn")
+    text_area = driver.find_element(By.ID, "pstad-descrptn")
     ad_suffix = config.get("glob_ad_suffix", "")
     ad_prefix = config.get("glob_ad_prefix", "")
 
@@ -282,25 +321,31 @@ def post_ad(driver, ad, interactive):
 
     if (ad['shipping_type']) != 'NONE':
         try:
-            select_element = driver.find_element_by_css_selector('select[id$=".versand_s"]')
-            shipment_select = Select(select_element)
-            log.debug("\t shipping select found with id: %s" % select_element.get_attribute('id'))
             if (ad['shipping_type']) == 'PICKUP':
-                shipment_select.select_by_visible_text("Nur Abholung")
+                ship_button = driver.find_element("xpath", "/html/body/div[1]/form/fieldset[2]/div[3]/div/div/div[1]/div[1]/div[2]/div/label[2]/input")
+                ship_button.click()
             if (ad['shipping_type']) == 'SHIPPING':
+                select_element = driver.find_element(By.CSS_SELECTOR, 'select[id$=".versand_s"]')
+                shipment_select = Select(select_element)
                 shipment_select.select_by_visible_text("Versand möglich")
             fake_wait()
         except NoSuchElementException:
             pass
 
-    text_area = driver.find_element_by_id('pstad-price')
+    text_area = driver.find_element(By.ID, 'pstad-price')
     if ad["price_type"] != 'GIVE_AWAY':
         text_area.send_keys(ad["price"])
-    price = driver.find_element_by_xpath("//input[@name='priceType' and @value='%s']" % ad["price_type"])
+        try:
+            price = driver.find_element("xpath", "//input[@name='priceType' and @value='%s']" % ad["price_type"])
+        except NoSuchElementException:
+            try:
+                price = driver.find_element("xpath", "//select[@name='priceType']/option[@value='%s']" % ad["price_type"])
+            except NoSuchElementException:
+                raise Exception('Cannot find price type selection!')        
     price.click()
     fake_wait()
 
-    text_area = driver.find_element_by_id('pstad-zip')
+    text_area = driver.find_element(By.ID, 'pstad-zip')
     text_area.clear()
     if ad.get("zip", None) is not None:
         text_area.send_keys(ad["zip"])
@@ -309,18 +354,18 @@ def post_ad(driver, ad, interactive):
     fake_wait()
 
     if config["glob_phone_number"]:
-        text_area = driver.find_element_by_id('postad-phonenumber')
+        text_area = driver.find_element(By.ID, 'postad-phonenumber')
         text_area.clear()
         text_area.send_keys(config["glob_phone_number"])
         fake_wait()
 
-    text_area = driver.find_element_by_id('postad-contactname')
+    text_area = driver.find_element(By.ID, 'postad-contactname')
     text_area.clear()
     text_area.send_keys(config["glob_contact_name"])
     fake_wait()
 
     if config["glob_street"]:
-        text_area = driver.find_element_by_id('pstad-street')
+        text_area = driver.find_element(By.ID, 'pstad-street')
         text_area.clear()
         text_area.send_keys(config["glob_street"])
         fake_wait()
@@ -328,19 +373,19 @@ def post_ad(driver, ad, interactive):
     # Upload images from photofiles
     if "photofiles" in ad:
         try:
-            fileup = driver.find_element_by_xpath("//input[@type='file']")
+            fileup = driver.find_element("xpath", "//input[@type='file']")
             for path in ad["photofiles"]:
                 path_abs = config["glob_photo_path"] + path
-                uploaded_count = len(driver.find_elements_by_class_name("imagebox-new-thumbnail"))
+                uploaded_count = len(driver.find_elements(By.CLASS_NAME, "imagebox-new-thumbnail"))
                 log.debug("\tUploading image: %s" % path_abs)
                 fileup.send_keys(os.path.abspath(path_abs))
                 total_upload_time = 0
-                while uploaded_count == len(driver.find_elements_by_class_name("imagebox-new-thumbnail")) and \
+                while uploaded_count == len(driver.find_elements(By.CLASS_NAME, "imagebox-new-thumbnail")) and \
                         total_upload_time < 30:
                     fake_wait(500)
                     total_upload_time += 0.5
 
-                if uploaded_count == len(driver.find_elements_by_class_name("imagebox-new-thumbnail")):
+                if uploaded_count == len(driver.find_elements(By.CLASS_NAME, "imagebox-new-thumbnail")):
                     log.warning("\tCould not upload image: %s within %s seconds" % (path_abs, total_upload_time))
                 else:
                     log.debug("\tUploaded file in %s seconds" % total_upload_time)
@@ -350,7 +395,7 @@ def post_ad(driver, ad, interactive):
     # Upload images from directory
     if "photo_dir" in ad:
         try:
-            fileup = driver.find_element_by_xpath("//input[@type='file']")
+            fileup = driver.find_element("xpath", "//input[@type='file']")
             path = ad["photo_dir"]
             path_abs = os.path.join(config["glob_photo_path"], path)
             if not path_abs.endswith("/"):
@@ -359,27 +404,21 @@ def post_ad(driver, ad, interactive):
                 if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
                     continue
                 file_path_abs = path_abs + filename
-                uploaded_count = len(driver.find_elements_by_class_name("imagebox-new-thumbnail"))
+                uploaded_count = len(driver.find_elements(By.CLASS_NAME, "imagebox-new-thumbnail"))
                 log.debug("\tUploading image: %s" % file_path_abs)
                 fileup.send_keys(os.path.abspath(file_path_abs))
                 total_upload_time = 0
-                while uploaded_count == len(driver.find_elements_by_class_name("imagebox-new-thumbnail")) and \
+                while uploaded_count == len(driver.find_elements(By.CLASS_NAME, "imagebox-new-thumbnail")) and \
                         total_upload_time < 60:
                     fake_wait(1000)
                     total_upload_time += 1
                 
-                if uploaded_count == len(driver.find_elements_by_class_name("imagebox-new-thumbnail")):
+                if uploaded_count == len(driver.find_elements(By.CLASS_NAME, "imagebox-new-thumbnail")):
                     log.warning("\tCould not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
                 else:
                     log.debug("\tUploaded file in %s seconds" % total_upload_time)
         except NoSuchElementException as e:
             log.error(e)
-
-    fake_wait()
-
-    submit_button = driver.find_element_by_id('pstad-frmprview')
-    if submit_button:
-        submit_button.click()
 
     fake_wait()
 
@@ -395,12 +434,15 @@ def post_ad(driver, ad, interactive):
 
     if fRc:
         try:
-            submit_button = driver.find_element_by_id('prview-btn-post')
+            submit_button = driver.find_element(By.ID, 'pstad-submit')
             if submit_button:
                 submit_button.click()
-        except NoSuchElementException:
+        except NoSuchElementException as e_msg:
+            log.debug(e_msg)
             pass
-
+        
+        WebDriverWait(driver, 6).until(EC.url_contains('adId='))
+        
         try:
             parsed_q = urllib.parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
             add_id = parsed_q.get('adId', None)[0]
@@ -432,6 +474,8 @@ def session_create(config):
     if os.path.isfile("./chrome-win/chrome.exe"):
         log.info("Found ./chrome-win/chrome.exe")
         options.binary_location = "./chrome-win/chrome.exe"
+
+    #options.add_extension(r'E:\Google Drive\Verkauf\_auto\ebayKleinanzeigen\chrome-extensions\crobot.crx')
 
     driver = webdriver.Chrome(options=options)
 
