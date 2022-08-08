@@ -354,6 +354,9 @@ def post_ad(driver, ad, interactive):
     fake_wait()
 
     if config["glob_phone_number"]:
+        radio_phonenumber = driver.find_element(By.ID, 'phoneNumberVisibility')
+        radio_phonenumber.click()
+        fake_wait()
         text_area = driver.find_element(By.ID, 'postad-phonenumber')
         text_area.clear()
         text_area.send_keys(config["glob_phone_number"])
