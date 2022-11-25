@@ -332,18 +332,52 @@ def post_ad(driver, ad, interactive):
         except NoSuchElementException:
             pass
 
-    text_area = driver.find_element(By.ID, 'pstad-price')
-    if ad["price_type"] != 'GIVE_AWAY':
-        text_area.send_keys(ad["price"])
-        try:
-            price = driver.find_element("xpath", "//input[@name='priceType' and @value='%s']" % ad["price_type"])
-        except NoSuchElementException:
-            try:
-                price = driver.find_element("xpath", "//select[@name='priceType']/option[@value='%s']" % ad["price_type"])
-            except NoSuchElementException:
-                raise Exception('Cannot find price type selection!')        
-    price.click()
-    fake_wait()
+    setted = 0
+    try:
+	if (setted == 0):
+	    text_area = driver.find_element(By.CLASS_NAME, 'pricefield')
+	    text_area.send_keys(ad["price"])
+	    setted = 1
+	else:
+	    pass
+    except:
+	pass
+    try:
+	if(setted == 0):
+	    text_area = driver.find_element(By.NAME,'priceAmount')
+	    text_area.send_keys(ad["price"])
+	    setted = 1
+	else:
+	    pass
+    except:
+	pass
+    try:
+	if(setted == 0):
+	    text_area = driver.find_element(By.ID, 'micro-frontend-price')
+	    text_area.send_keys(ad["price"])
+	    setted = 1
+	else:
+	    pass
+    except:
+	pass
+    try:
+	if(setted == 0):
+	    text_area = driver.find_element(By.ID, 'pstad-price')
+	    text_area.send_keys(ad["price"])
+	    setted = 1
+	else:
+	    pass
+    except:
+	pass
+    
+    if ad["price_type"] != 'GIVE_AWAY': 
+	try:
+	    if(ad["price_type"] != 'FIXED'):
+		price = driver.find_element(By.XPATH, '//*[@id="priceType"]/option[2]')  
+		price.click()
+	except NoSuchElementException:
+		raise Exception('Cannot find price type selection!')       
+	time.sleep(10)
 
     text_area = driver.find_element(By.ID, 'pstad-zip')
     text_area.clear()
@@ -444,8 +478,10 @@ def post_ad(driver, ad, interactive):
             log.debug(e_msg)
             pass
         
-        WebDriverWait(driver, 6).until(EC.url_contains('adId='))
-        
+        try:
+            WebDriverWait(driver, 30).until(EC.url_contains('adId='))
+        except:
+            time.sleep(5)
         try:
             parsed_q = urllib.parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
             add_id = parsed_q.get('adId', None)[0]
