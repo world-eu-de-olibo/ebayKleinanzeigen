@@ -6,7 +6,7 @@
 """
 Created on Tue Oct  6 00:15:14 2015
 Updated and improved by x86dev Dec 2017.
-Updated world-eu-de-olibo Nov 2022.
+Updated world-eu-de-olibo Aug 2022.
 
 @author: Leo; Eduardo; x86dev
 """
@@ -334,50 +334,50 @@ def post_ad(driver, ad, interactive):
 
     setted = 0
     try:
-	if (setted == 0):
-	    text_area = driver.find_element(By.CLASS_NAME, 'pricefield')
-	    text_area.send_keys(ad["price"])
-	    setted = 1
-	else:
-	    pass
+        if (setted == 0):
+            text_area = driver.find_element(By.CLASS_NAME, 'pricefield')
+            text_area.send_keys(ad["price"])
+            setted = 1
+        else:
+            pass
     except:
-	pass
+        pass
     try:
-	if(setted == 0):
-	    text_area = driver.find_element(By.NAME,'priceAmount')
-	    text_area.send_keys(ad["price"])
-	    setted = 1
-	else:
-	    pass
+        if(setted == 0):
+            text_area = driver.find_element(By.NAME,'priceAmount')
+            text_area.send_keys(ad["price"])
+            setted = 1
+        else:
+            pass
     except:
-	pass
+        pass
     try:
-	if(setted == 0):
-	    text_area = driver.find_element(By.ID, 'micro-frontend-price')
-	    text_area.send_keys(ad["price"])
-	    setted = 1
-	else:
-	    pass
+        if(setted == 0):
+            text_area = driver.find_element(By.ID, 'micro-frontend-price')
+            text_area.send_keys(ad["price"])
+            setted = 1
+        else:
+            pass
     except:
-	pass
+        pass
     try:
-	if(setted == 0):
-	    text_area = driver.find_element(By.ID, 'pstad-price')
-	    text_area.send_keys(ad["price"])
-	    setted = 1
-	else:
-	    pass
+        if(setted == 0):
+            text_area = driver.find_element(By.ID, 'pstad-price')
+            text_area.send_keys(ad["price"])
+            setted = 1
+        else:
+            pass
     except:
-	pass
+        pass
     
     if ad["price_type"] != 'GIVE_AWAY': 
-	try:
-	    if(ad["price_type"] != 'FIXED'):
-		price = driver.find_element(By.XPATH, '//*[@id="priceType"]/option[2]')  
-		price.click()
-	except NoSuchElementException:
-		raise Exception('Cannot find price type selection!')       
-	time.sleep(10)
+        try:
+            if(ad["price_type"] != 'FIXED'):
+                price = driver.find_element(By.XPATH, '//*[@id="priceType"]/option[2]')  
+                price.click()
+        except NoSuchElementException:
+                raise Exception('Cannot find price type selection!')       
+        time.sleep(10)
 
     text_area = driver.find_element(By.ID, 'pstad-zip')
     text_area.clear()
